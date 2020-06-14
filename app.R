@@ -99,15 +99,13 @@ server <- function(input, output, session)
         hot_row(nrow(values$data), readOnly = TRUE)
     })
     
-    my_col_names <- reactive({
-      str_trim(unlist(strsplit(isolate(input$colnames),",")))
-    })
+    
    
     observeEvent(input$build, {
       
       output$plot <- renderPlot({
         
-        boxplot(values$data, names = my_col_names()) 
+        boxplot(values$data,  str_trim(unlist(strsplit(isolate(input$colnames),",")))) 
         
       })
     })
