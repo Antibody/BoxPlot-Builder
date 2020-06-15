@@ -4,8 +4,9 @@ library(dplyr)
 library(stringr)
 
 
-ui <- shinyUI(fluidPage(
-  titlePanel("A Simply Online Boxplot Builder"),
+ui <- shinyUI(fluidPage(  
+  titlePanel("A Simple Online Boxplot Generator App with ANOVA"),
+
   textOutput('result'),
   sidebarLayout(
     sidebarPanel(
@@ -41,14 +42,13 @@ ui <- shinyUI(fluidPage(
     mainPanel(textInput("colnames", span("Enter column names (separated by comma)", style = "color:darkblue"), 
                         value="", placeholder = "e.g. Var1, Var2, Var3, etc"),
               h5(tags$b("Enter data", style = "color:darkblue")),
-              h5("requires column names input"),
               
               rHandsontableOutput('table'),
               br(),
               br(),
               h4('One-way ANOVA summary'),
               verbatimTextOutput('aovSummary'),
-              actionButton("anova", "Calculate Anova"),
+              actionButton("anova", "Calculate ANOVA"),
               
               br(),
               br(),
@@ -58,7 +58,7 @@ ui <- shinyUI(fluidPage(
               actionButton("Tukey", "Calculate Tukey"),
               
               hr(),
-              print("~~~ Web Box Plot Generator with individual values/observation added as a scatter plot~~~~")
+              print("~~~ Web Box Plot Builder With One-Way Anova ~~~~")
               
     )
   )
@@ -75,9 +75,13 @@ defaultDF <- data.frame(
   stringsAsFactors = FALSE
 )
 
+
+
 server <- function(input, output, session)
   ({
     values <- reactiveValues(data = defaultDF) ## assign it with NULL
+ 
+   
     
     ## button press resets now the data frame
     observeEvent(input$recalc, {
@@ -100,12 +104,18 @@ server <- function(input, output, session)
     })
     
     
-   
+    
+    
     observeEvent(input$build, {
+      my_col_names <- reactive({
+        str_trim(unlist(strsplit(isolate(input$colnames),",")))
+      })
       
       output$plot <- renderPlot({
         
-        boxplot(values$data,  str_trim(unlist(strsplit(isolate(input$colnames),",")))) 
+       
+        
+        boxplot(values$data, names = my_col_names()) 
         
       })
     })
@@ -189,6 +199,7 @@ server <- function(input, output, session)
           
           require(reshape2)
           DF1 = melt(DF1, id.vars = "id")
+          res.aov <- (aov(value ~ variable, data = DF1 ))
           print(TukeyHSD(res.aov))
         }
       })
