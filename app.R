@@ -10,10 +10,11 @@ ui <- shinyUI(fluidPage(
   textOutput('result'),
   sidebarLayout(
     sidebarPanel(
-      wellPanel(
-        plotOutput("plot")
-      ),
       
+      wellPanel(
+      plotOutput("plot"),
+      br(),
+      ) ,
       
     
       wellPanel(
@@ -53,6 +54,7 @@ ui <- shinyUI(fluidPage(
               br(),
               br(),
               
+              
               h4('Tukey HSD summary'),
               verbatimTextOutput('TukeySummary'),
               actionButton("Tukey", "Calculate Tukey"),
@@ -90,11 +92,24 @@ server <- function(input, output, session)
     
     observe({
       req(input$table)
-      DF <- hot_to_r(input$table)
-      DF[setdiff(rowNames, "Means"),]
-      DF["Means",] <- colMeans(DF[setdiff(rowNames, "Means"),], na.rm = TRUE)
-      values$data <- DF
-          })
+      req(input$colnames)
+       DF <- hot_to_r(input$table)
+       colnames(DF) = str_trim(unlist(strsplit(isolate(input$colnames),",")))
+       DF[setdiff(rowNames, "Means"),]
+       DF["Means",] <- colMeans(DF[setdiff(rowNames, "Means"),], na.rm = TRUE)
+        values$data <- DF
+                 })
+  
+    observe({    
+      req(input$table)
+      
+       DF <- hot_to_r(input$table)
+       DF[setdiff(rowNames, "Means"),]
+       DF["Means",] <- colMeans(DF[setdiff(rowNames, "Means"),], na.rm = TRUE)
+        values$data <- DF
+                  })
+      
+  
     
      
     output$table <- renderRHandsontable({
@@ -104,21 +119,16 @@ server <- function(input, output, session)
     })
     
     
-    
+   
     
     observeEvent(input$build, {
-      my_col_names <- reactive({
-        str_trim(unlist(strsplit(isolate(input$colnames),",")))
-      })
+      
       
       output$plot <- renderPlot({
         
-       
-        
-        boxplot(values$data, names = my_col_names()) 
-        
-      })
-    })
+        boxplot(values$data) 
+                                 })
+                                  })
     
     
     #Export PNG
@@ -132,13 +142,25 @@ server <- function(input, output, session)
         
       })
     
-    observeEvent(input$anova, {
     
+    meltDF <- reactive({
+      row.names.remove <- c("Means") #to remove "means" row
+    
+    DF1 <- DF1[!(row.names(DF1) %in% row.names.remove), ] # removes "means" row
+    
+    
+    DF1$id = 1:nrow(DF1)
+    
+    require(reshape2)
+    DF1 = melt(DF1, id.vars = "id")
+                                    })
+    
+    observeEvent(input$anova, {
+      DF1 <- isolate(values$data)
+      
     output$aovSummary = renderPrint({
-      DF1 <- isolate(values$data)  #to change names in plot, alternatively, put (see comment below)
-      if(!is.null(input$contents)) 
-      {
-        colnames(DF1) = str_trim(unlist(strsplit(isolate(input$colnames),",")))
+        #to change names in plot, alternatively, put (see comment below)
+      
       row.names.remove <- c("Means") #to remove "means" row
       
       DF1 <- DF1[!(row.names(DF1) %in% row.names.remove), ] # removes "means" row
@@ -149,22 +171,9 @@ server <- function(input, output, session)
       require(reshape2)
       DF1 = melt(DF1, id.vars = "id")
       print(summary(aov(value ~ variable, data = DF1 )))
-      }
+     
       
-      else {
-        
-      row.names.remove <- c("Means") #to remove "means" row
-      
-      DF1 <- DF1[!(row.names(DF1) %in% row.names.remove), ] # removes "means" row
-      
-      
-      DF1$id = 1:nrow(DF1)
-      
-      require(reshape2)
-      DF1 = melt(DF1, id.vars = "id")
-      print(summary(aov(value ~ variable, data = DF1 )))
-      }
-      
+     
       
     })
     
@@ -175,34 +184,14 @@ server <- function(input, output, session)
       
       output$TukeySummary = renderPrint({
         DF1 <- isolate(values$data)  #to change names in plot, alternatively, put (see comment below)
-         if(!is.null(input$contents)) 
-          {
-           colnames(DF1) = str_trim(unlist(strsplit(isolate(input$colnames),",")))
-            row.names.remove <- c("Means") #to remove "means" row
-        
-            DF1 <- DF1[!(row.names(DF1) %in% row.names.remove), ] # removes "means" row
-            DF1$id = 1:nrow(DF1)
-        
-             require(reshape2)
-              DF1 = melt(DF1, id.vars = "id")
-              res.aov <- (aov(value ~ variable, data = DF1 ))
-               print(TukeyHSD(res.aov))
-                }
-        else {
-          
           row.names.remove <- c("Means") #to remove "means" row
-          
           DF1 <- DF1[!(row.names(DF1) %in% row.names.remove), ] # removes "means" row
-          
-          
           DF1$id = 1:nrow(DF1)
-          
           require(reshape2)
           DF1 = melt(DF1, id.vars = "id")
           res.aov <- (aov(value ~ variable, data = DF1 ))
           print(TukeyHSD(res.aov))
-        }
-      })
+              })
       
     })
     
